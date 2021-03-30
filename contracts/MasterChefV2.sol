@@ -195,6 +195,27 @@ contract MasterChefV2 is BoringOwnable, BoringBatchable {
 
         emit Deposit(msg.sender, pid, amount, to);
     }
+    
+    /// @notice Deposit LP tokens to MCV2 for SUSHI allocation.
+    /// @param pid The index of the pool. See `poolInfo`.
+    /// @param amount LP token amount to deposit.
+    /// @param to The receiver of `amount` deposit benefit.
+    /// @dev `v`, `r` and `s` must be a valid `secp256k1` signature from `owner` over the EIP712-formatted function arguments.
+    function depositWithPermit(uint256 pid, uint256 amount, address to, uint8 v, bytes32 r, bytes32 s) public {
+        PoolInfo memory pool = updatePool(pid);
+        UserInfo storage user = userInfo[pid][to];
+
+        // Effects
+        user.amount = user.amount.add(amount);
+        user.rewardDebt = user.rewardDebt.add(int256(amount.mul(pool.accSushiPerShare) / ACC_SUSHI_PRECISION));
+
+        // Interactions
+        IERC20 lp = lpToken[pid];
+        lp.permit(msg.sender, address(this), amount, now, v, r, s);
+        lp.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit Deposit(msg.sender, pid, amount, to);
+    }
 
     /// @notice Withdraw LP tokens from MCV2.
     /// @param pid The index of the pool. See `poolInfo`.
